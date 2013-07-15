@@ -29,7 +29,7 @@
 /  f_truncate and useless f_getfree. */
 
 
-#define _FS_MINIMIZE	1	/* 0, 1, 2 or 3 */
+#define _FS_MINIMIZE	0	/* 0, 1, 2 or 3 */
 /* The _FS_MINIMIZE option defines minimization level to remove some functions.
 /
 /   0: Full function.
@@ -108,7 +108,7 @@
 */
 
 
-#define _FS_RPATH	0		/* 0 or 1 */
+#define _FS_RPATH	1		/* 0 or 1 */
 /* When _FS_RPATH is set to 1, relative path feature is enabled and f_chdir,
 /  f_chdrive function are available.
 /  Note that output of the f_readdir fnction is affected by this option. */

@@ -182,6 +182,12 @@ static int term_translate( int data )
 static void uart_send( int fd, char c )
 {
   fd = fd;
+  //putchar(c);
+#ifdef STDERR
+  if( fd == STDERR_FILENO)
+    platform_stderr_send(c);
+  else
+#endif
   platform_uart_send( CON_UART_ID, c );
 }
 

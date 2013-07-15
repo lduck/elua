@@ -21,11 +21,11 @@ toolchain_list = {
     'cross_lualong' : 'int 32'
   },
   'arm-eabi-gcc' : {
-    'compile' : 'arm-eabi-gcc',
-    'link' : 'arm-eabi-ld',
-    'asm' : 'arm-eabi-as',
-    'bin' : 'arm-eabi-objcopy',
-    'size' : 'arm-eabi-size',
+    'compile' : '/usr/local/arm-cs-tools/bin/arm-eabi-gcc',
+    'link' : '/usr/local/arm-cs-tools/bin/arm-eabi-ld',
+    'asm' : '/usr/local/arm-cs-tools/bin/arm-eabi-as',
+    'bin' : '/usr/local/arm-cs-tools/bin/arm-eabi-objcopy',
+    'size' : '/usr/local/arm-cs-tools/bin/arm-eabi-size',
     'cross_cpumode' : 'little',
     'cross_lua' : 'float 64',
     'cross_lualong' : 'int 32'
@@ -70,6 +70,13 @@ toolchain_list = {
     'cross_lua' : 'float 64',
     'cross_lualong' : 'int 32'
   }
+}
+
+romfs = { 
+    'lhttpd' : [ 'index.pht', 'lhttpd.lua', 'test.lua' ]
+}
+file_list = { 
+    'NETDUINO' : [ 'lhttpd' ]
 }
 
 # Toolchain Aliases
@@ -295,6 +302,7 @@ if not GetOption( 'help' ):
   elif comp['romfs'] == 'compress':
     compcmd = 'lua luasrcdiet.lua --quiet --maximum --opt-comments --opt-whitespace --opt-emptylines --opt-eols --opt-strings --opt-numbers --opt-locals -o %s %s'
 
+  print os.path.join( os.getcwd(), 'luac.cross.elf -ccn %s -cce %s -o %%s -s %%s' % ( toolset[ 'cross_%s' % comp['target'] ], toolset[ 'cross_cpumode' ] ) )
   # User report
   if not GetOption( 'clean' ):
     print
@@ -336,11 +344,12 @@ if not GetOption( 'help' ):
   # Lua source files and include path
   lua_files = """lapi.c lcode.c ldebug.c ldo.c ldump.c lfunc.c lgc.c llex.c lmem.c lobject.c lopcodes.c
     lparser.c lstate.c lstring.c ltable.c ltm.c lundump.c lvm.c lzio.c lauxlib.c lbaselib.c
-    ldblib.c liolib.c lmathlib.c loslib.c ltablib.c lstrlib.c loadlib.c linit.c lua.c lrotable.c legc.c"""
+    ldblib.c liolib.c lmathlib.c loslib.c ltablib.c lstrlib.c loadlib.c linit.c lua.c lrotable.c legc.c ../rings/src/rings.c"""
 
   lua_full_files = " " + " ".join( [ "src/lua/%s" % name for name in lua_files.split() ] )
   
-  comp.Append(CPPPATH = ['inc', 'inc/newlib',  'inc/remotefs', 'src/platform', 'src/lua'])
+  #comp.Append(CPPPATH = ['inc', 'inc/newlib',  'inc/remotefs', 'src/platform', 'src/lua'])
+  comp.Append(CPPPATH = ['inc', 'inc/newlib',  'inc/remotefs', 'src/matrixssl', 'src/lwIP/src/include', 'src/lwIP/src/include/ipv4', 'src/corutine/','src/platform', 'src/lua'])
   if comp['target'] == 'lualong' or comp['target'] == 'lualonglong':
     conf.env.Append(CPPDEFINES = ['LUA_NUMBER_INTEGRAL'])
   if comp['target'] == 'lualonglong':
@@ -352,9 +361,50 @@ if not GetOption( 'help' ):
   # Additional libraries
   local_libs = ''
 
+  # MatrixSSL files
+  matrix_core = " src/matrixssl/core/corelib.c src/matrixssl/core/eLua/osdep.c "
+  matrix_crypto = """ src/matrixssl/crypto/keyformat/asn1.c 
+                    src/matrixssl/crypto/keyformat/base64.c src/matrixssl/crypto/keyformat/x509.c
+                    src/matrixssl/crypto/digest/md5.c src/matrixssl/crypto/digest/sha1.c
+                    src/matrixssl/crypto/digest/hmac.c src/matrixssl/crypto/math/pstm.c
+                    src/matrixssl/crypto/pubkey/pubkey.c src/matrixssl/crypto/pubkey/pkcs.c
+                    src/matrixssl/crypto/pubkey/rsa.c src/matrixssl/crypto/prng/prng.c 
+                    src/matrixssl/crypto/prng/yarrow.c src/matrixssl/crypto/symmetric/aes.c 
+                    src/matrixssl/crypto/symmetric/arc4.c src/matrixssl/crypto/symmetric/des3.c """
+  matrix_ssl =  """ src/matrixssl/matrixssl/cipherSuite.c
+                    src/matrixssl/matrixssl/matrixssl.c
+                    src/matrixssl/matrixssl/matrixsslApi.c
+                    src/matrixssl/matrixssl/sslDecode.c
+                    src/matrixssl/matrixssl/sslEncode.c
+                    src/matrixssl/matrixssl/tls.c
+                    src/matrixssl/matrixssl/sslv3.c """                
+  
+  #matrix_test = " src/matrixssl/matrixssl/test/sslTest.c src/matrixssl/apps/elua_httpsd.c"
+  #matrix_test = " src/matrixssl/apps/elua_httpsd.c"
+  #matrix_test = " src/lwIP/bp_httpd_neroztriedenie.c "
+  matrix_test = " src/lwIP/bp_httpd.c src/matrixssl/apps/http.c "
+  
+  matrix_files = matrix_core + matrix_crypto + matrix_ssl + matrix_test 
+  
+  
+  # lwIP
+  lwIP_core_files = """ src/lwIP/src/core/mem.c src/lwIP/src/core/memp.c src/lwIP/src/core/netif.c \
+                        src/lwIP/src/core/pbuf.c src/lwIP/src/core/raw.c \
+                        src/lwIP/src/core/stats.c src/lwIP/src/core/sys.c \
+                        src/lwIP/src/core/tcp.c src/lwIP/src/core/tcp_in.c \
+                        src/lwIP/src/core/tcp_out.c src/lwIP/src/core/udp.c src/lwIP/src/core/dhcp.c \
+                        src/lwIP/src/core/init.c src/lwIP/src/core/timers.c src/lwIP/src/core/def.c """
+  
+  lwIP_core4_files = """ src/lwIP/src/core/ipv4/icmp.c src/lwIP/src/core/ipv4/ip.c \
+                        src/lwIP/src/core/ipv4/inet.c src/lwIP/src/core/ipv4/ip_addr.c \
+                        src/lwIP/src/core/ipv4/ip_frag.c src/lwIP/src/core/ipv4/inet_chksum.c """
+
+  lwIP_net_files = " src/lwIP/src/netif/etharp.c src/elua_lwIP.c " 
+  lwIP_files = lwIP_core_files + lwIP_core4_files + lwIP_net_files
+  
   # Application files
   app_files = """ src/main.c src/romfs.c src/semifs.c src/xmodem.c src/shell.c src/term.c src/common.c src/common_tmr.c src/buf.c src/elua_adc.c src/dlmalloc.c 
-                  src/salloc.c src/luarpc_elua_uart.c src/elua_int.c src/linenoise.c src/common_uart.c src/eluarpc.c """
+                  src/salloc.c src/luarpc_elua_uart.c src/elua_int.c src/linenoise.c src/common_uart.c src/eluarpc.c src/httpd_lua.c """
 
   # Newlib related files
   newlib_files = " src/newlib/devman.c src/newlib/stubs.c src/newlib/genstd.c src/newlib/stdtcp.c"
@@ -369,7 +419,7 @@ if not GetOption( 'help' ):
   comp.Append(CPPPATH = ['src/fatfs'])
 
   # Lua module files
-  module_names = "pio.c spi.c tmr.c pd.c uart.c term.c pwm.c lpack.c bit.c net.c cpu.c adc.c can.c luarpc.c bitarray.c elua.c i2c.c"
+  module_names = "pio.c spi.c tmr.c pd.c uart.c term.c pwm.c lpack.c bit.c net.c cpu.c adc.c can.c luarpc.c bitarray.c elua.c i2c.c fatfs.c wsapi.c"
   module_files = " " + " ".join( [ "src/modules/%s" % name for name in module_names.split() ] )
 
   # Remote file system files
@@ -377,7 +427,12 @@ if not GetOption( 'help' ):
   rfs_files = " " + " ".join( [ "src/remotefs/%s" % name for name in rfs_names.split() ] )
 
   # Optimizer flags (speed or size)
-  comp.Append(CCFLAGS = ['-Os','-fomit-frame-pointer'])
+  # comp.Append(CCFLAGS = ['-Os','-fomit-frame-pointer'])
+  #comp.Append(CCFLAGS = ['-Os','-fomit-frame-pointer','-g'])
+  #comp.Append(CCFLAGS = ['-Os','-fomit-frame-pointer','-g','-Wall','-DIPv4','-fpack-struct','-DLWIP_DEBUG'])
+  #comp.Append(CCFLAGS = ['-O0','-fomit-frame-pointer','-g','-Wall','-DIPv4','-fpack-struct','-DLWIP_DEBUG'])
+  #comp.Append(CCFLAGS = ['-Os','-fomit-frame-pointer','-g','-Wall','-DIPv4','-DLWIP_DEBUG'])
+  comp.Append(CCFLAGS = ['-Os','-fomit-frame-pointer','-g','-Wall','-DIPv4','-DLWIP_DEBUG', '-DDEBUG'])
   #opt += " -ffreestanding"
   #opt += " -fconserve-stack" # conserve stack at potential speed cost, >=GCC4.4
 
@@ -388,7 +443,8 @@ if not GetOption( 'help' ):
   execfile( "src/platform/%s/conf.py" % platform )
 
   # Complete file list
-  source_files = Split( app_files + specific_files + newlib_files + uip_files + lua_full_files + module_files + rfs_files )
+  #source_files = Split( app_files + specific_files + newlib_files + uip_files + lua_full_files + module_files + rfs_files )
+  source_files = Split( matrix_files + lwIP_files + app_files + specific_files + newlib_files + uip_files + lua_full_files + module_files + rfs_files )
   
   comp = conf.Finish()
 

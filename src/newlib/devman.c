@@ -11,6 +11,8 @@
 #include "common.h"
 #include "platform_conf.h"
 
+#include "ff.h"
+
 static const DM_DEVICE* dm_list[ DM_MAX_DEVICES ];           // list of devices
 static int dm_num_devs;                               // number of devices
 
@@ -182,5 +184,73 @@ int dm_closedir( DM_DIR *d )
     _REENT->_errno = EBADF;
   free( d );
   return res;
+}
+
+
+// *****************************************************************************
+/* Change the current directory  */
+int chdir (const char *path) {
+  if (path == NULL) {
+    //__set_errno (EINVAL);
+    return -1;
+  }
+  FRESULT res;
+  if( ( *path == '/' ) && ( strlen(path) == 1 ) ) {
+    if( (dm_chdir_dev_id >= 0) && (dm_chdir_dev_id == dm_mmc_index) ) {
+      res = f_chdir(path);
+      if( res != FR_OK ) {
+        return -1;
+      }
+    }
+    dm_chdir_dev_id = -1;
+    return 0;
+//  } else if( strncmp(path, "/mmc", 4) != 0 ) {
+  } else if( strcmp(path, "/mmc") != 0 ) {
+    char* rest;
+    if(dm_mmc_index < 0 ) {
+      if( ( dm_mmc_index = dm_device_id_from_name( path, (const char **)&rest ) ) == DM_ERR_NO_DEVICE ) {
+        return -1;
+      }
+    } else {
+       rest = path + 4;
+    }
+
+    dm_chdir_dev_id = dm_mmc_index;
+    printf("dm_chdir_dev_id:%d\n", dm_chdir_dev_id);
+
+
+    // remove ending slash for fatFs. "directory/" is not the same as "directory"
+    path = rest;
+    int path_len =  strlen(path) -1;// - 1;
+
+
+    for(rest = (path + path_len); *rest == '/'; rest--) {
+      *rest = '\0';
+    }
+    rest++;
+
+//    if( path[strlen(path)-1] == '/') {
+//      char *p = (char *) path + strlen(path) -1;
+//      *p = '\0';
+//      printf("oprava: fatfs.chdir('%s')\n", path);
+//    }
+
+    res = f_chdir(path);
+    if( res != FR_OK ) {
+//      lua_pushnil (L);
+//      lua_pushfstring (L,"Unable to change working directory to '%s'\nerror code: %d (check FRESULT enum)\n",
+//                      path, res);
+      return -1;
+    }
+
+    for( ; rest <= (path + path_len); rest++ ) {
+      *rest = '/';
+    }
+    return 0;
+  }
+
+
+  //__set_errno (ENOSYS);
+  return -1;
 }
 

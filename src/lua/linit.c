@@ -23,10 +23,12 @@ static const luaL_Reg lualibs[] = {
   {LUA_LOADLIBNAME, luaopen_package},
   {LUA_IOLIBNAME, luaopen_io},
   {LUA_STRLIBNAME, luaopen_string},    
+//  {LUA_RINGSLIBNAME, luaopen_rings},
+//  {LUA_FATFSLIBNAME, luaopen_fatfs},
 #if LUA_OPTIMIZE_MEMORY == 0
   {LUA_MATHLIBNAME, luaopen_math},
   {LUA_TABLIBNAME, luaopen_table},  
-  {LUA_DBLIBNAME, luaopen_debug},  
+  {LUA_DBLIBNAME, luaopen_debug},
 #endif
 #ifdef LUA_PLATFORM_LIBS_REG
   LUA_PLATFORM_LIBS_REG,

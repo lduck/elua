@@ -25,6 +25,11 @@ static volatile u8 elua_uip_configured;
 // *****************************************************************************
 // Platform independenet eLua UIP "main loop" implementation
 
+// List of ports used by actually running daemons
+#ifdef BUILD_DAEMON_SUPPORT_FOR_UIP
+struct daemon daemons[UIP_CONNS];
+#endif
+
 // Timers
 static u32 periodic_timer, arp_timer;
 
@@ -32,7 +37,7 @@ static u32 periodic_timer, arp_timer;
 #define BUF                     ((struct uip_eth_hdr *)&uip_buf[0])
 
 // UIP Timers (in ms)
-#define UIP_PERIODIC_TIMER_MS   500
+#define UIP_PERIODIC_TIMER_MS   100
 #define UIP_ARP_TIMER_MS        10000
 
 #define IP_TCP_HEADER_LENGTH 40
@@ -306,6 +311,29 @@ void elua_uip_appcall()
     else if( s->state == ELUA_UIP_STATE_CONNECT )
       s->state = ELUA_UIP_STATE_IDLE;
     uip_stop();
+//#ifdef BUILD_DAEMON_SUPPORT_FOR_UIP
+//    //TODO lduck: spravit kontrolu, ci ide o socket na ktorom pocuva daemon.
+//    // ak ano, tak zavolat callback pre connected
+//    //struct daemon actual_daemon;
+//    for( temp = 0; temp < UIP_CONNS; temp ++ ) {
+//        if( uip_conn->lport == HTONS( daemons[ temp ].port ) ) {
+//          struct ssl_state *ssl_state;
+//          //ssl_state->sock = sockno;
+//          //*s->ssl_state->sock = sockno;
+//
+//          ssl_state = (struct ssl_state *)malloc( sizeof( struct ssl_state ) );
+//          if( ssl_state == NULL )  {
+//              printf("Not enough memory for allocation ssl_state\r\n");
+//          }
+//          ssl_state->ssl = (ssl_t *)malloc( sizeof ( ssl_t ) );
+//          if( ssl_state->ssl == NULL )  {
+//              printf("Not enough memory for allocation ssl_state->ssl_t\r\n");
+//          }
+//          ssl_state->sock = sockno;
+//          daemons[ temp ].connected( &ssl_state );
+//        }
+//    }
+//#endif
     return;
   }
 
@@ -435,6 +463,7 @@ void elua_uip_appcall()
         uip_stop();
         s->res = ELUA_NET_ERR_OK;
         s->state = ELUA_UIP_STATE_IDLE;
+        //printf("ASI mozemo zavolat funkciu pre citanie\r\n");
       }
     }
     else
@@ -478,7 +507,49 @@ void elua_uip_init( const struct uip_eth_addr *paddr )
 #ifdef BUILD_CON_TCP
   uip_listen( HTONS( ELUA_NET_TELNET_PORT ) );
 #endif  
+
+#ifdef BUILD_DAEMON_SUPPORT_FOR_UIP
+  u16 position;
+  for(position=0; position < UIP_CONNS; position++ )
+    daemons[ position ].port = 0;
+    /* port 0 is reserved (RFC 1700). So daemon should not listen on it. We will
+     * use it to indicate, if the structure is used by some daemon or no.
+     */
+#endif
 }
+
+#ifdef BUILD_DAEMON_SUPPORT_FOR_UIP
+struct daemon *elua_get_daemon_struct( u16 port ) {
+  u16 position;
+  for(position=0; position < UIP_CONNS; position++ )
+    if( daemons[ position ].port == port )
+      return &daemons[ position ];
+  return NULL;
+}
+// Accept a connection on the given port, return its socket id (and the IP of the remote host by side effect)
+void elua_daemon_accept( struct daemon *d )
+{
+  //timer_data_type tmrstart = 0;
+  int old_status;
+
+  while( !elua_uip_configured );
+//  if( !elua_uip_configured )
+//    return;// -1;
+#ifdef BUILD_CON_TCP
+  if( port == ELUA_NET_TELNET_PORT )
+    return -1;
+#endif
+  old_status = platform_cpu_set_global_interrupts( PLATFORM_CPU_DISABLE );
+  uip_unlisten( htons( d->port ) );
+  uip_listen( htons( d->port ) );
+  platform_cpu_set_global_interrupts( old_status );
+  elua_uip_accept_sock = -1;
+  elua_uip_accept_request = 1;
+  //*pfrom = elua_uip_accept_remote;
+  return;//elua_uip_accept_sock;
+}
+#endif // BUILD_DAEMON_SUPPORT_FOR_UIP
+
 
 // *****************************************************************************
 // eLua UIP UDP application (used for the DHCP client and the DNS resolver)
@@ -632,8 +703,9 @@ int elua_accept( u16 port, unsigned timer_id, timer_data_type to_us, elua_net_ip
   timer_data_type tmrstart = 0;
   int old_status;
   
-  if( !elua_uip_configured )
-    return -1;
+//  if( !elua_uip_configured )
+//    return -1;
+  while( !elua_uip_configured );
 #ifdef BUILD_CON_TCP
   if( port == ELUA_NET_TELNET_PORT )
     return -1;

@@ -55,6 +55,7 @@
 //------------------------------------------------------------------------------
 
 #include <stdio.h>
+#include "trace.h"
 
 //------------------------------------------------------------------------------
 //         Definitions
@@ -69,22 +70,48 @@
         string - Formatted string to output if the condition fails.
         ... - Additional arguments depending on the formatted string.
 */
-#if !defined(NOASSERT) && !defined(NOTRACE)
 
-    //char sanityError[] = "Sanity check failed at %s:%d\n\r";
 
-    #define ASSERT(condition, ...)  { \
-        if (!(condition)) { \
-            printf(__VA_ARGS__); \
-            while (1); \
-        } \
-    }
-    #define SANITY_ERROR            "Sanity check failed at %s:%d\n\r"
-    #define SANITY_CHECK(condition) ASSERT(condition, SANITY_ERROR, __FILE__, __LINE__)
-#else
+#if defined(NOASSERT) || defined(NOTRACE)
     #define ASSERT(...)
     #define SANITY_CHECK(...)
+#else // !defined(NOASSERT) && !defined(NOTRACE)
+
+    #if (TRACE_LEVEL == 0)
+        /// Checks that the given condition is true,
+        /// otherwise stops the program execution.
+        /// \param condition  Condition to verify.
+        #define ASSERT(condition, ...)  { \
+            if (!(condition)) { \
+                while (1); \
+            } \
+        }
+
+        /// Performs the same duty as the ASSERT() macro
+        /// \param condition  Condition to verify.
+        #define SANITY_CHECK(condition) ASSERT(condition, ...)
+
+    #else
+        /// Checks that the given condition is true, otherwise displays an error
+        /// message and stops the program execution.
+        /// \param condition  Condition to verify.
+        #define ASSERT(condition, ...)  { \
+            if (!(condition)) { \
+                fprintf( stderr, "-F- ASSERT: "); \
+                fprintf( stderr, __VA_ARGS__); \
+                while (1); \
+            } \
+        }
+        #define SANITY_ERROR            "Sanity check failed at %s:%d\n\r"
+
+        /// Performs the same duty as the ASSERT() macro, except a default error
+        /// message is output if the condition is false.
+        /// \param condition  Condition to verify.
+        #define SANITY_CHECK(condition) ASSERT(condition, SANITY_ERROR, __FILE__, __LINE__)
+    #endif
 #endif
+
+
 
 #endif //#ifndef ASSERT_H
 

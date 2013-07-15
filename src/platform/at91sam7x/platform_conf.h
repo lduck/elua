@@ -9,19 +9,46 @@
 #include "buf.h"
 #include "elua_int.h"
 #include "sermux.h"
+#include "uip.h"
 
 // *****************************************************************************
 // Define here what components you want for this platform
 
-#define BUILD_XMODEM
+// this will never be #define BUILD_DAEMON_SUPPORT_FOR_UIP
+#define BUILD_LWIP
+//#define BUILD_SSL
+
+//#define BUILD_UIP
+//#define BUILD_DHCPC
+//#define BUILD_DNS
+//#define BUILD_CON_TCP
+
+//#define BUILD_XMODEM
 #define BUILD_SHELL
 #define BUILD_ROMFS
 #define BUILD_TERM
 #define BUILD_CON_GENERIC
+
+// support for arrow keys, history and some key sequences in the interpreter.
+// requires BUILD_TERM. http://www.eluaproject.net/doc/v0.8/en_linenoise.html
+#define BUILD_LINENOISE
+
 //#define BUILD_RPC
 //#define BUILD_RFS
 //#define BUILD_SERMUX
 #define BUILD_C_INT_HANDLERS
+
+
+#define BUILD_MMCFS
+#define MMCFS_CS_PORT 0 //AT91C_BASE_PIOA
+#define MMCFS_CS_PIN 13 //AT91C_PA13_SPI0_NPCS1     //AT91C_PA11_NPCS0
+#define MMCFS_SPI_NUM 0
+
+
+// trace and assert are writing to dbgu port
+//#define STDERR 1
+#define TRACE_LEVEL TRACE_LEVEL_DEBUG
+
 
 #define PLATFORM_HAS_SYSTIMER
 
@@ -41,6 +68,12 @@
 #define BUILD_RPC
 #endif
 
+#if defined BUILD_UIP //|| defined BUILD_LWIP
+#define NETLINE  _ROM( AUXLIB_NET, luaopen_net, net_map )
+#else
+#define NETLINE
+#endif
+
 #if defined( BUILD_RPC ) 
 #define RPCLINE _ROM( AUXLIB_RPC, luaopen_rpc, rpc_map )
 #else
@@ -56,10 +89,43 @@
   _ROM( AUXLIB_PWM, luaopen_pwm, pwm_map )\
   _ROM( AUXLIB_PACK, luaopen_pack, pack_map )\
   _ROM( AUXLIB_BIT, luaopen_bit, bit_map )\
+  NETLINE\
   _ROM( AUXLIB_CPU, luaopen_cpu, cpu_map )\
   _ROM( AUXLIB_ELUA, luaopen_elua, elua_map )\
   RPCLINE\
-  _ROM( LUA_MATHLIBNAME, luaopen_math, math_map )
+  _ROM( LUA_MATHLIBNAME, luaopen_math, math_map )\
+  _ROM( LUA_FATFSLIBNAME, luaopen_fatfs, fatfs_map )\
+  _ROM( LUA_WSAPILIBNAME, luaopen_wsapi, wsapi_map )
+
+// *****************************************************************************
+// Configuration data
+
+/// The MAC address used for this project
+//static const struct uip_eth_addr MacAddress = {{0x00, 0x45, 0x56, 0x78, 0x9a, 0xbc}};
+//TODO: mal by som vymysliet nejaky kusok pamate, kde to bude nakonfigurovane a
+//   namiesto pristupu k tejto globalnej premennej sa to z tadial precita
+static const u8_t  MacAddress[6] = {0x00, 0x45, 0x56, 0x78, 0x9a, 0xbc};
+
+// Static TCP/IP configuration
+#define ELUA_CONF_IPADDR0     192
+#define ELUA_CONF_IPADDR1     168
+#define ELUA_CONF_IPADDR2     100
+#define ELUA_CONF_IPADDR3     90
+
+#define ELUA_CONF_NETMASK0    255
+#define ELUA_CONF_NETMASK1    255
+#define ELUA_CONF_NETMASK2    255
+#define ELUA_CONF_NETMASK3    0
+
+#define ELUA_CONF_DEFGW0      192
+#define ELUA_CONF_DEFGW1      168
+#define ELUA_CONF_DEFGW2      100
+#define ELUA_CONF_DEFGW3      20
+
+#define ELUA_CONF_DNS0        192
+#define ELUA_CONF_DNS1        168
+#define ELUA_CONF_DNS2        100
+#define ELUA_CONF_DNS3        20
 
 // *****************************************************************************
 // Configuration data
@@ -88,6 +154,10 @@
 // Enable RX buffering on UART
 #define BUF_ENABLE_UART
 #define CON_BUF_SIZE          BUF_SIZE_128
+
+// Linenoise buffer sizes
+#define LINENOISE_HISTORY_SIZE_LUA    50
+#define LINENOISE_HISTORY_SIZE_SHELL  10
 
 // CPU frequency (needed by the CPU module and MMCFS code, 0 if not used)
 #define CPU_FREQUENCY         BOARD_MCK

@@ -220,6 +220,9 @@ int platform_s_uart_recv( unsigned id, timer_data_type timeout );
 int platform_uart_set_flow_control( unsigned id, int type );
 int platform_s_uart_set_flow_control( unsigned id, int type );
 
+// to have STDERR on different console as STDOUT
+void platform_stderr_send( u8 data );
+
 // *****************************************************************************
 // PWM subsection
 
@@ -301,7 +304,7 @@ int platform_i2c_recv_byte( unsigned id, int ack );
 // *****************************************************************************
 // Ethernet specific functions
 
-void platform_eth_send_packet( const void* src, u32 size );
+s8 platform_eth_send_packet( const void* src, u32 size );
 u32 platform_eth_get_packet_nb( void* buf, u32 maxlen );
 void platform_eth_force_interrupt();
 u32 platform_eth_get_elapsed_time();

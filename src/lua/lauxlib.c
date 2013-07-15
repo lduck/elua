@@ -699,24 +699,39 @@ static void *l_alloc (void *ud, void *ptr, size_t osize, size_t nsize) {
   int mode = L == NULL ? 0 : G(L)->egcmode;
   void *nptr;
 
+#include <stdio.h>
+//  printf("_");
   if (nsize == 0) {
+      if (ptr == NULL) {
+        //printf("REALLOC na NULL\n");
+        return NULL;
+      }
     free(ptr);
+//    printf("f");
     return NULL;
   }
+
   if (L != NULL && (mode & EGC_ALWAYS)) /* always collect memory if requested */
     luaC_fullgc(L);
   if(nsize > osize && L != NULL) {
 #if defined(LUA_STRESS_EMERGENCY_GC)
     luaC_fullgc(L);
 #endif
-    if(G(L)->memlimit > 0 && (mode & EGC_ON_MEM_LIMIT) && l_check_memlimit(L, nsize - osize))
+    if(G(L)->memlimit > 0 && (mode & EGC_ON_MEM_LIMIT) && l_check_memlimit(L, nsize - osize)) {
+//      printf("memlimit\n");
       return NULL;
+    }
   }
   nptr = realloc(ptr, nsize);
+  //printf("realloc1");
   if (nptr == NULL && L != NULL && (mode & EGC_ON_ALLOC_FAILURE)) {
+//    printf("EGC_ON_ALLOC_FAILURE");
     luaC_fullgc(L); /* emergency full collection. */
     nptr = realloc(ptr, nsize); /* try allocation again */
+    printf("+");//realloc2");
   }
+  if(nptr == NULL) breakpoint();
+//  printf("+");
   return nptr;
 }
 

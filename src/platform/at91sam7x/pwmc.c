@@ -56,7 +56,10 @@ static unsigned short FindClockConfiguration(
     unsigned char divisor = 0;
     unsigned int prescaler;
 
-    SANITY_CHECK(frequency < mck);
+    //FIXME:
+    //SANITY_CHECK(frequency < mck);
+    TRACE_WARNING("should not continue because of Sanity check.");
+    TRACE_WARNING("Condition: %d < %d. file: %s:%d\r\n", frequency, mck, __FILE__, __LINE__);
 
     // Find prescaler and divisor values
     prescaler = (mck / divisors[divisor]) / frequency;
@@ -69,7 +72,7 @@ static unsigned short FindClockConfiguration(
     // Return result
     if (divisor < 11) {
 
-        trace_LOG(trace_DEBUG, "-D- Found divisor=%u and prescaler=%u for freq=%uHz\n\r",
+        TRACE_DEBUG("-D- Found divisor=%u and prescaler=%u for freq=%uHz\n\r",
                   divisors[divisor], prescaler, frequency);
         return prescaler | (divisor << 8);
     }
@@ -98,7 +101,9 @@ void PWMC_ConfigureChannel(
     unsigned int alignment,
     unsigned int polarity)
 {
-    SANITY_CHECK(prescaler < AT91C_PWMC_CPRE_MCKB);
+    //TODO: check, how the condition really should be, because
+    // (prescaler < AT91C_PWMC_CPRE_MCKB) is wrong
+    SANITY_CHECK(prescaler <= AT91C_PWMC_CPRE_MCKB);
     SANITY_CHECK((alignment & ~AT91C_PWMC_CALG) == 0);
     SANITY_CHECK((polarity & ~AT91C_PWMC_CPOL) == 0);
 
@@ -139,7 +144,7 @@ void PWMC_ConfigureClocks(unsigned int clka, unsigned int clkb, unsigned int mck
     }
 
     // Configure clocks
-    trace_LOG(trace_DEBUG, "-D- Setting PWMC_MR = 0x%08X\n\r", mode);
+    TRACE_DEBUG("-D- Setting PWMC_MR = 0x%08X\n\r", mode);
     AT91C_BASE_PWMC->PWMC_MR = mode;
 }
 

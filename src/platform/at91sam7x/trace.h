@@ -35,13 +35,20 @@
         errors, which can be turned on/off.
 
     About: Usage
-        1 - Initialize the DBGU using <trace_CONFIGURE>.
-        2 - Uses the <trace_LOG> macro to output traces throughout the program.
+        1 - Initialize the DBGU using TRACE_CONFIGURE() if you intend to
+            eventually disable ALL traces; otherwise use DBGU_Configure().
+        2 - Uses the TRACE_DEBUG(), TRACE_INFO(), TRACE_WARNING(), TRACE_ERROR()
+            TRACE_FATAL() macro to output traces throughout the program.
+            Each type of trace has a level : Debug 5, Info 4, Warning 3, Error 2
+            and Fatal 1. Disable a group of traces by changing the value of
+            TRACE_LEVEL during compilation; traces with a level bigger than
+            TRACE_LEVEL are not generated. To generate no trace, use
+            the reserved value 0.
         3 - Turn off all traces by defining the NOTRACE symbol during
             compilation.
-        4 - Disable a group of trace by changing the value of <trace_LEVEL>
-            during compilation; traces with a level below <trace_LEVEL> are not
-            generated.
+        4 - Trace disabling can be static or dynamic. If dynamic disabling is
+            selected the trace level can be modified in runtime. If static
+            disabling is selected the disabled traces are not compiled.
 */
 
 #ifndef TRACE_H
@@ -52,9 +59,9 @@
 //------------------------------------------------------------------------------
 
 #if !defined(NOTRACE)
-    #include <board.h>
-    #include <dbgu/dbgu.h>
-    #include <pio/pio.h>
+    #include "board.h"
+    #include "dbgu.h"
+    #include "pio.h"
     #include <stdio.h>
 #endif
 
@@ -63,72 +70,187 @@
 //------------------------------------------------------------------------------
 /*
     Constants: Trace levels
-        trace_FATAL - Indicates a major error which prevents the program from
-            going any further.
-        trace_ERROR - Indicates an error which may not stop the program
-            execution, but which indicates there is a problem with the code.
-        trace_WARNING - Indicates that a minor error has happened. In most case
-            it can be discarded safely; it may even be expected.
-        trace_INFO - Informational trace about the program execution. Should
-            enable the user to see the execution flow.
-        trace_DEBUG - Traces whose only purpose is for debugging the program,
-            and which do not produce meaningful information otherwise.
+      RACE_DEBUG (5): Traces whose only purpose is for debugging the program,
+        and which do not produce meaningful information otherwise.
+      TRACE_INFO (4): Informational trace about the program execution. Should
+        enable the user to see the execution flow.
+      TRACE_WARNING (3): Indicates that a minor error has happened. In most case
+        it can be discarded safely; it may even be expected.
+      TRACE_ERROR (2): Indicates an error which may not stop the program
+        execution, but which indicates there is a problem with the code.
+      TRACE_FATAL (1): Indicates a major error which prevents the program from
+      going any further.
 */
-#define trace_DEBUG                     0
-#define trace_INFO                      1
-#define trace_WARNING                   2
-#define trace_ERROR                     3
-#define trace_FATAL                     4
 
-/*
-    Constant: trace_LEVEL
-        Minimum level of traces that are output. By default, all traces are
-        output; change the value of this symbol during compilation for a more
-        restrictive behavior.
-*/
-#if !defined(trace_LEVEL)
-    #define trace_LEVEL                     0
+#define TRACE_LEVEL_DEBUG      5
+#define TRACE_LEVEL_INFO       4
+#define TRACE_LEVEL_WARNING    3
+#define TRACE_LEVEL_ERROR      2
+#define TRACE_LEVEL_FATAL      1
+#define TRACE_LEVEL_NO_TRACE   0
+
+
+// By default, all traces are output except the debug one.
+#ifndef TRACE_LEVEL
+//#define TRACE_LEVEL TRACE_LEVEL_INFO
+#define TRACE_LEVEL TRACE_LEVEL_DEBUG
+#endif
+
+// By default, trace level is static (not dynamic)
+#if !defined(DYN_TRACES)
+#define DYN_TRACES 0
 #endif
 
 /*
-    Macro: trace_CONFIGURE
-        Initializes the DBGU unless the NOTRACE symbol has been defined.
-
-    Parameters:
-        mode - DBGU mode.
-        baudrate - DBGU baudrate.
-        mck - Master clock frequency.
+#if defined(NOTRACE)
+    #error "Error: NOTRACE has to be not defined !"
+    #define TRACE_FATAL(...)
+    #define TRACE_ERROR(...)
+    #define TRACE_INFO(...)
+    #define TRACE_DEBUG(...)
+#endif
 */
-#if !defined(NOTRACE)
-    #define trace_CONFIGURE(mode, baudrate, mck) { \
-        const Pin pinsDbgu[] = {PINS_DBGU}; \
-        PIO_Configure(pinsDbgu, PIO_LISTSIZE(pinsDbgu)); \
-        DBGU_Configure(mode, baudrate, mck); \
+
+#undef NOTRACE
+#if (TRACE_LEVEL == TRACE_LEVEL_NO_TRACE)
+#define NOTRACE
+#endif
+
+
+
+//------------------------------------------------------------------------------
+//         Global Macros
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+/// Initializes the DBGU
+/// \param mode  DBGU mode.
+/// \param baudrate  DBGU baudrate.
+/// \param mck  Master clock frequency.
+//------------------------------------------------------------------------------
+#define TRACE_CONFIGURE(mode, baudrate, mck) { \
+    const Pin pinsDbgu[] = {PINS_DBGU}; \
+    PIO_Configure(pinsDbgu, PIO_LISTSIZE(pinsDbgu)); \
+    DBGU_Configure(mode, baudrate, mck); \
     }
+
+//------------------------------------------------------------------------------
+/// Initializes the DBGU for ISP project
+/// \param mode  DBGU mode.
+/// \param baudrate  DBGU baudrate.
+/// \param mck  Master clock frequency.
+//------------------------------------------------------------------------------
+#if (TRACE_LEVEL==0) && (DYNTRACE==0)
+#define TRACE_CONFIGURE_ISP(mode, baudrate, mck) {}
 #else
-    #define trace_CONFIGURE(...)
+#define TRACE_CONFIGURE_ISP(mode, baudrate, mck) { \
+    const Pin pinsDbgu[] = {PINS_DBGU}; \
+    PIO_Configure(pinsDbgu, PIO_LISTSIZE(pinsDbgu)); \
+    DBGU_Configure(mode, baudrate, mck); \
+    }
 #endif
 
-/*
-    Macro: trace_LOG
-        Outputs a formatted string using <printf> if the log level is high
-        enough. Can be disabled by defining the NOTRACE symbol during
-        compilation.
+//------------------------------------------------------------------------------
+/// Outputs a formatted string using <printf> if the log level is high
+/// enough. Can be disabled by defining TRACE_LEVEL=0 during compilation.
+/// \param format  Formatted string to output.
+/// \param ...  Additional parameters depending on formatted string.
+//------------------------------------------------------------------------------
+#if defined(NOTRACE)
 
-    Parameters:
-        level - Trace level (see <Trace levels>).
-        format - Formatted string to output.
-        ... - Additional parameters, depending on the formatted string.
-*/
-#if !defined(NOTRACE)
-    #define trace_LOG(level, ...) { \
-        if (level >= trace_LEVEL) { \
-            printf(__VA_ARGS__); \
-        } \
-    }
+// Empty macro
+#define TRACE_DEBUG(...)      { }
+#define TRACE_INFO(...)       { }
+#define TRACE_WARNING(...)    { }
+#define TRACE_ERROR(...)      { }
+#define TRACE_FATAL(...)      { while(1); }
+
+#define TRACE_DEBUG_WP(...)   { }
+#define TRACE_INFO_WP(...)    { }
+#define TRACE_WARNING_WP(...) { }
+#define TRACE_ERROR_WP(...)   { }
+#define TRACE_FATAL_WP(...)   { while(1); }
+
+#elif (DYN_TRACES == 1)
+
+// Trace output depends on traceLevel value
+#define TRACE_DEBUG(...)      { if (traceLevel >= TRACE_LEVEL_DEBUG)   { printf("-D- " __VA_ARGS__); } }
+#define TRACE_INFO(...)       { if (traceLevel >= TRACE_LEVEL_INFO)    { printf("-I- " __VA_ARGS__); } }
+#define TRACE_WARNING(...)    { if (traceLevel >= TRACE_LEVEL_WARNING) { printf("-W- " __VA_ARGS__); } }
+#define TRACE_ERROR(...)      { if (traceLevel >= TRACE_LEVEL_ERROR)   { printf("-E- " __VA_ARGS__); } }
+#define TRACE_FATAL(...)      { if (traceLevel >= TRACE_LEVEL_FATAL)   { printf("-F- " __VA_ARGS__); while(1); } }
+
+#define TRACE_DEBUG_WP(...)   { if (traceLevel >= TRACE_LEVEL_DEBUG)   { printf(__VA_ARGS__); } }
+#define TRACE_INFO_WP(...)    { if (traceLevel >= TRACE_LEVEL_INFO)    { printf(__VA_ARGS__); } }
+#define TRACE_WARNING_WP(...) { if (traceLevel >= TRACE_LEVEL_WARNING) { printf(__VA_ARGS__); } }
+#define TRACE_ERROR_WP(...)   { if (traceLevel >= TRACE_LEVEL_ERROR)   { printf(__VA_ARGS__); } }
+#define TRACE_FATAL_WP(...)   { if (traceLevel >= TRACE_LEVEL_FATAL)   { printf(__VA_ARGS__); while(1); } }
+
+#else
+
+// Trace compilation depends on TRACE_LEVEL value
+#if (TRACE_LEVEL >= TRACE_LEVEL_DEBUG)
+#define TRACE_DEBUG(...)      { fprintf( stderr, "-D- " __VA_ARGS__); }
+#define TRACE_DEBUG_WP(...)   { fprintf( stderr, __VA_ARGS__); }
+#else
+#define TRACE_DEBUG(...)      { }
+#define TRACE_DEBUG_WP(...)   { }
+#endif
+
+#if (TRACE_LEVEL >= TRACE_LEVEL_INFO)
+#define TRACE_INFO(...)       { fprintf( stderr, "-I- " __VA_ARGS__); }
+#define TRACE_INFO_WP(...)    { fprintf( stderr, __VA_ARGS__); }
+#else
+#define TRACE_INFO(...)       { }
+#define TRACE_INFO_WP(...)    { }
+#endif
+
+#if (TRACE_LEVEL >= TRACE_LEVEL_WARNING)
+#define TRACE_WARNING(...)    { fprintf( stderr, "-W- " __VA_ARGS__); }
+#define TRACE_WARNING_WP(...) { fprintf( stderr, __VA_ARGS__); }
+#else
+#define TRACE_WARNING(...)    { }
+#define TRACE_WARNING_WP(...) { }
+#endif
+
+#if (TRACE_LEVEL >= TRACE_LEVEL_ERROR)
+#define TRACE_ERROR(...)      { fprintf( stderr, "-E- " __VA_ARGS__); }
+#define TRACE_ERROR_WP(...)   { fprintf( stderr, _VA_ARGS__); }
+#else
+#define TRACE_ERROR(...)      { }
+#define TRACE_ERROR_WP(...)   { }
+#endif
+
+#if (TRACE_LEVEL >= TRACE_LEVEL_FATAL)
+#define TRACE_FATAL(...)      { fprintf( stderr, "-F- " __VA_ARGS__); while(1); }
+#define TRACE_FATAL_WP(...)   { fprintf( stderr, __VA_ARGS__); while(1); }
+#else
+#define TRACE_FATAL(...)      { while(1); }
+#define TRACE_FATAL_WP(...)   { while(1); }
+#endif
+
+#endif
+
+
+//------------------------------------------------------------------------------
+//         Exported variables
+//------------------------------------------------------------------------------
+// Depending on DYN_TRACES, traceLevel is a modifable runtime variable
+// or a define
+#if !defined(NOTRACE) && (DYN_TRACES == 1)
+    extern unsigned int traceLevel;
+#endif
+
+
+/*
 #else
     #define trace_LOG(...)
+    #define TRACE_FATAL(...)
+    #define TRACE_ERROR(...)
+    #define TRACE_INFO(...)
+    #define TRACE_DEBUG(...)
 #endif
+*/
 
 #endif //#ifndef TRACE_H
 

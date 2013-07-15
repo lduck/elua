@@ -44,6 +44,11 @@ u8 romfs_open_file( const char* fname, p_read_fs_byte p_read_func, FS* pfs )
   u32 i, j;
   char fsname[ DM_MAX_FNAME_LENGTH + 1 ];
   u16 fsize;
+
+  // remove leading slash(s)
+  while(*fname == '/') {
+    fname++;
+  }
   
   // Look for the file
   i = 0;

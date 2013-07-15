@@ -27,6 +27,12 @@
 #include "ltable.h"
 
 
+//// iba pre debug
+#include <stdio.h>
+void breakpoint() {
+  printf("malloc / realloc vratil NULL a Lua chce pokracovat\n");
+}
+///
 
 #define hasmultret(k)		((k) == VCALL || (k) == VVARARG)
 
@@ -384,6 +390,7 @@ static void close_func (LexState *ls) {
 Proto *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff, const char *name) {
   struct LexState lexstate;
   struct FuncState *pfuncstate = (struct FuncState*)malloc(sizeof(struct FuncState));
+  if( pfuncstate == NULL) breakpoint();
   Proto *res;
   TString *tname = luaS_new(L, name);
   setsvalue2s(L, L->top, tname);  /* protect name */
@@ -584,6 +591,7 @@ static void parlist (LexState *ls) {
 static void body (LexState *ls, expdesc *e, int needself, int line) {
   /* body ->  `(' parlist `)' chunk END */
   FuncState *pnew_fs = (FuncState*)malloc(sizeof(FuncState));
+  if( pnew_fs == NULL) breakpoint();
   open_func(ls, pnew_fs);
   pnew_fs->f->linedefined = line;
   checknext(ls, '(');
@@ -891,6 +899,7 @@ static void block (LexState *ls) {
   /* block -> chunk */
   FuncState *fs = ls->fs;
   BlockCnt *pbl = (BlockCnt*)malloc(sizeof(BlockCnt));
+  if( pbl == NULL) breakpoint();
   enterblock(fs, pbl, 0);
   chunk(ls);
   lua_assert(pbl->breaklist == NO_JUMP);
@@ -1004,6 +1013,7 @@ static void whilestat (LexState *ls, int line) {
   int whileinit;
   int condexit;
   BlockCnt *pbl = (BlockCnt*)malloc(sizeof(BlockCnt));
+  if( pbl == NULL) breakpoint();
   luaX_next(ls);  /* skip WHILE */
   whileinit = luaK_getlabel(fs);
   condexit = cond(ls);
@@ -1024,6 +1034,7 @@ static void repeatstat (LexState *ls, int line) {
   FuncState *fs = ls->fs;
   int repeat_init = luaK_getlabel(fs);
   BlockCnt *pbl1 = (BlockCnt*)malloc(sizeof(BlockCnt)), *pbl2 = (BlockCnt*)malloc(sizeof(BlockCnt));
+  if( pbl1 == NULL) breakpoint();
   enterblock(fs, pbl1, 1);  /* loop block */
   enterblock(fs, pbl2, 0);  /* scope block */
   luaX_next(ls);  /* skip REPEAT */
@@ -1059,6 +1070,7 @@ static int exp1 (LexState *ls) {
 static void forbody (LexState *ls, int base, int line, int nvars, int isnum) {
   /* forbody -> DO block */
   BlockCnt *pbl = (BlockCnt*)malloc(sizeof(BlockCnt));
+  if( pbl == NULL) breakpoint();
   FuncState *fs = ls->fs;
   int prep, endfor;
   adjustlocalvars(ls, 3);  /* control variables */
@@ -1128,6 +1140,7 @@ static void forstat (LexState *ls, int line) {
   FuncState *fs = ls->fs;
   TString *varname;
   BlockCnt *pbl = (BlockCnt*)malloc(sizeof(BlockCnt));
+  if( pbl == NULL) breakpoint();
   enterblock(fs, pbl, 1);  /* scope for loop and control variables */
   luaX_next(ls);  /* skip `for' */
   varname = str_checkname(ls);  /* first variable name */

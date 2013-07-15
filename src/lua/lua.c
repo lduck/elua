@@ -75,6 +75,7 @@ static int report (lua_State *L, int status) {
 
 
 static int traceback (lua_State *L) {
+//  printf("TRACEBACK\n");
   if (!lua_isstring(L, 1))  /* 'message' not a string? */
     return 1;  /* keep it intact */
   lua_getfield(L, LUA_GLOBALSINDEX, "debug");
@@ -254,6 +255,51 @@ static int handle_script (lua_State *L, char **argv, int n) {
   return report(L, status);
 }
 
+static int handle_script2 (lua_State *L, char **argv, int n) {
+  int status;
+  const char *fname;
+//  int narg = getargs(L, argv, n);  /* collect arguments */
+//  lua_setglobal(L, "arg");
+
+//  printf("%d", narg);
+
+  fname = argv[n];
+  if (strcmp(fname, "-") == 0 && strcmp(argv[n-1], "--") != 0)
+    fname = NULL;  /* stdin */
+  const char line[] = "print '<html><body>'";
+  status = luaL_loadbuffer(L, line, 20, line);
+
+//  status = luaL_loadfile(L, fname);
+
+//  lua_insert(L, -(narg+1)); //premiestni vrchny element na zadanu poziciu -(narg+1)
+  if (status == 0) {
+//  printf("narg: %d\n", narg);
+    //status = docall(L, narg, 0);
+      // z docall()
+      //int status;
+
+      //TODO presunut na miesto kde nacitavam kniznice. traceback tak budem mat stale
+      //pre traceback. ked nemam arg tak to hadam pojde na vrch
+//      int base = lua_gettop(L) - narg;  /* function index */
+      int traceback_base = lua_gettop(L);  /* function index */
+      lua_pushcfunction(L, traceback);  /* push traceback function */
+      lua_insert(L, traceback_base);  /* put it under chunk and args */
+
+      signal(SIGINT, laction);
+      //printf("lua_pcall(L, %d, %d, %d\n", narg, (0 ? 0 : LUA_MULTRET), base);
+      //status = lua_pcall(L, narg, (0 ? 0 : LUA_MULTRET), traceback_base);
+      status = lua_pcall(L, 0, 0, traceback_base);
+      signal(SIGINT, SIG_DFL);
+      lua_remove(L, traceback_base);  /* remove traceback function */
+      /* force a complete garbage collection in case of errors */
+      if (status != 0) lua_gc(L, LUA_GCCOLLECT, 0);
+      return status;
+  }
+//  else
+//    lua_pop(L, narg);
+  return report(L, status);
+}
+
 
 /* check that argument has no extra characters at the end */
 #define notail(x)	{if ((x)[2] != '\0') return -1;}
@@ -357,6 +403,37 @@ static int pmain (lua_State *L) {
   if (argv[0] && argv[0][0]) progname = argv[0];
   lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
   luaL_openlibs(L);  /* open libraries */
+
+/////////
+#include <malloc.h>
+  struct mallinfo mi;
+  mi = mallinfo();
+  printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
+  printf("# of free chunks (ordblks):            %d\n", mi.ordblks);
+  printf("# of free fastbin blocks (smblks):     %d\n", mi.smblks);
+  printf("# of mapped regions (hblks):           %d\n", mi.hblks);
+  printf("Bytes in mapped regions (hblkhd):      %d\n", mi.hblkhd);
+  printf("Max. total allocated space (usmblks):  %d\n", mi.usmblks);
+  printf("Free bytes held in fastbins (fsmblks): %d\n", mi.fsmblks);
+  printf("Total allocated space (uordblks):      %d\n", mi.uordblks);
+  printf("Total free space (fordblks):           %d\n", mi.fordblks);
+  printf("Topmost releasable block (keepcost):   %d\n", mi.keepcost);
+
+  printf("malloc_stats():\n");
+  malloc_stats();
+//  //FIXME: toto iba vypisuje path
+//  lua_getglobal(L, LUA_LOADLIBNAME);
+//  if (!lua_istable(L, -1)) {
+//      printf("Cannot set module path; missing "
+//                        "'package' module");
+//      return 0;
+//  }
+//  lua_getfield(L, -1, "path");
+//  if (lua_isstring(L, -1)) {
+//      printf("PATH: %s\n", lua_tostring(L, -1) );
+//  }
+  //
+
   lua_gc(L, LUA_GCRESTART, 0);
   s->status = handle_luainit(L);
   if (s->status != 0) return 0;
@@ -370,7 +447,7 @@ static int pmain (lua_State *L) {
   s->status = runargs(L, argv, (script > 0) ? script : s->argc);
   if (s->status != 0) return 0;
   if (script)
-    s->status = handle_script(L, argv, script);
+    s->status = handle_script2(L, argv, script);
   if (s->status != 0) return 0;
   if (has_i)
     dotty(L);
@@ -384,6 +461,21 @@ static int pmain (lua_State *L) {
   return 0;
 }
 
+static void l_pushtablestring(lua_State* L , const char *key , const char *value) {
+  lua_pushstring(L, key);
+  lua_pushstring(L, value);
+  lua_settable(L, -3);
+}
+
+static int get_request_header (lua_State *L) {
+
+  const char * str = luaL_checkstring(L, 1);  /* get argument */
+  luaL_newmetatable(L, "request_header");
+  l_pushtablestring(L, "REQUEST_METHOD", str);
+  //lua_pushstring(L, str);  /* push result */
+  return 1;  /* number of results */
+}
+
 #ifdef LUA_RPC
 int main (int argc, char **argv) {
 #else
@@ -391,7 +483,12 @@ int lua_main (int argc, char **argv) {
 #endif
   int status;
   struct Smain s;
-  lua_State *L = lua_open();  /* create state */
+//  lua_State *L = lua_open();  /* create state */
+  lua_State *L = wsapi_prepare();  /* create state */
+
+  lua_pushcfunction(L, get_request_header);
+  lua_setglobal(L, "get_request_header");
+
   if (L == NULL) {
     l_message(argv[0], "cannot create state: not enough memory");
     return EXIT_FAILURE;
@@ -403,4 +500,28 @@ int lua_main (int argc, char **argv) {
   lua_close(L);
   return (status || s.status) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
+
+
+
+
+//int lua_exec_file (const char *path, uint32 path_len) {
+//  int status;
+//  lua_State *L = lua_open();  /* create state */
+//  if (L == NULL) {
+//    l_message(path, "cannot create state: not enough memory");
+//    return EXIT_FAILURE;
+//  }
+//
+//  lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
+//  luaL_openlibs(L);  /* open libraries */
+//  lua_gc(L, LUA_GCRESTART, 0);
+//
+//  status = handle_script(L, argv, script);
+//
+//
+//
+//
+//  lua_close(L);
+//  return (status || s.status) ? EXIT_FAILURE : EXIT_SUCCESS;
+//}
 

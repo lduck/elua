@@ -2,7 +2,7 @@
 
 cpumode = ARGUMENTS.get( 'cpumode', 'thumb' ).lower()
 
-specific_files = "board_cstartup.s board_lowlevel.c board_memories.c usart.c pmc.c pio.c platform.c tc.c pwmc.c aic.c platform_int.c pit.c"
+specific_files = "board_cstartup.s board_lowlevel.c board_memories.c usart.c pmc.c pio.c platform.c tc.c pwmc.c aic.c platform_int.c pit.c ethernet/emac.c ethernet/dm9161/dm9161.c rstc.c dbgu.c"
 if comp[ 'cpu' ] == 'AT91SAM7X256':
   ldscript = "flash256.lds"
   comp.Append(CPPDEFINES = 'at91sam7x256')
@@ -13,7 +13,8 @@ else:
   print "Invalid AT91SAM7X CPU %s" % comp[ 'cpu' ]
   Exit( -1 )
   
-comp.Append(CPPDEFINES = ['NOASSERT','NOTRACE'])
+#ASSERT and TRACE are usefull.
+#comp.Append(CPPDEFINES = ['NOASSERT','NOTRACE'])
   
 # Prepend with path
 specific_files = " ".join( [ "src/platform/%s/%s" % ( platform, f ) for f in specific_files.split() ] )
@@ -40,7 +41,7 @@ comp.Prepend(ASFLAGS = [TARGET_FLAGS,'-D__ASSEMBLY__'])
 # Toolset data
 tools[ 'at91sam7x' ] = {}
 
-# Programming function for LPC2888
+# Programming function for at91sam7x
 def progfunc_at91sam7x( target, source, env ):
   outname = output + ".elf"
   os.system( "%s %s" % ( toolset[ 'size' ], outname ) )

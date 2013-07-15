@@ -32,9 +32,19 @@ static int find_dm_entry( const char* name, char **pactname )
   char tempname[ DM_MAX_DEV_NAME + 1 ];
   
   // Sanity check for name
-  if( name == NULL || *name == '\0' || *name != '/' )
+  if( name == NULL || *name == '\0' ) {
     return -1;
-    
+  }
+  if( *name != '/' ) {
+    printf("dm_chdir_dev_id:%d\n", dm_chdir_dev_id);
+    if( dm_chdir_dev_id >= 0 ) {
+      *pactname = name;
+      return dm_chdir_dev_id;
+    }
+    return -1;
+  }
+
+
   // Find device name
   preal = strchr( name + 1, '/' );
   if( preal == NULL )
@@ -62,7 +72,7 @@ static int find_dm_entry( const char* name, char **pactname )
     return -1;
     
   // Find the actual first char of the name
-  preal ++;
+  //preal ++; // <<< this increment remove leading slash ("/") from filename. mmcfs needs that slash
   if( *preal == '\0' )
     return -1;
   *pactname = ( char * )preal;
@@ -236,7 +246,7 @@ int _gettimeofday_r( struct _reent *r, struct timeval *tv, void *tz )
 
 #include <stdlib.h>
 void _exit( int status )
-{
+{//FIXME ak nebude debug, tak spravit reboot a niektde to poznacit
   while( 1 );
 }
 

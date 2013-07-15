@@ -88,13 +88,15 @@ int main( void )
   }
 
   // Initialize device manager
-  dm_init();
+//som to dal do platform.c  dm_init();
+
+  dm_chdir_dev_id = DM_ERR_NO_DEVICE;
 
   // Register the ROM filesystem
   dm_register( romfs_init() );
 
   // Register the MMC filesystem
-  dm_register( mmcfs_init() );
+  dm_mmc_index = dm_register( mmcfs_init() );
 
   // Register the Semihosting filesystem
   dm_register( semifs_init() );
@@ -117,9 +119,13 @@ int main( void )
 #ifdef ELUA_BOOT_RPC
   boot_rpc();
 #else
-  
+
+  //elua_httpsd_run();
+  //matrix_ssl_test();
+  //elua_httpsd_init();
+
   // Run the shell
-  if( shell_init() == 0 )
+  if( shell_init() != 0 )
   {
     // Start Lua directly
     char* lua_argv[] = { "lua", NULL };

@@ -2,7 +2,7 @@
 
 local cpumode = ( builder:get_option( 'cpumode' ) or 'thumb' ):lower()
 
-specific_files = "board_cstartup.s board_lowlevel.c board_memories.c usart.c pmc.c pio.c platform.c tc.c pwmc.c aic.c platform_int.c pit.c"
+specific_files = "board_cstartup.s board_lowlevel.c board_memories.c usart.c pmc.c pio.c platform.c tc.c pwmc.c aic.c platform_int.c pit.c ethernet/emac.c ethernet/dm9161/dm9161.c rstc.c dbgu.c"
 local ldscript
 if comp.cpu:upper() == 'AT91SAM7X256' then
   ldscript = "flash256.lds"
@@ -15,7 +15,8 @@ else
   os.exit( -1 )
 end
 
-addm( { 'NOASSERT','NOTRACE' } )
+-- ASSERT and TRACE are very usefull
+--addm( { 'NOASSERT','NOTRACE' } )
   
 -- Prepend with path
 specific_files = utils.prepend_path( specific_files, sf( "src/platform/%s", platform ) )

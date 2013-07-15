@@ -24,7 +24,7 @@ static FIL mmc_fileObject;
 //static FILINFO mmc_fileInfo;
 
 #define PATH_BUF_SIZE   40
-static char mmc_pathBuf[PATH_BUF_SIZE];
+//static char mmc_pathBuf[PATH_BUF_SIZE];
 
 static int mmcfs_find_empty_fd( void )
 {
@@ -47,11 +47,14 @@ static int mmcfs_open_r( struct _reent *r, const char *path, int flags, int mode
     return -1;
   }
 
+  /* this is not need any more. the CALLER of fopen have to know what is he doing.
+   * if there was slash ("/") we do not remove it in stubs.c find_dm_entry().
+   * and if there is no slash, it is probably because the chdir() was called before.
   // Default to top directory if none given
   mmc_pathBuf[0] = 0;
   if (strchr(path, '/') == NULL)
     strcat(mmc_pathBuf, "/");
-  strcat(mmc_pathBuf, path);
+  strcat(mmc_pathBuf, path); */
 
   // Scrub binary flag, if defined
 #ifdef O_BINARY
@@ -95,7 +98,8 @@ static int mmcfs_open_r( struct _reent *r, const char *path, int flags, int mode
 #endif  // _FS_READONLY
 
   // Open the file for reading
-  if (f_open(&mmc_fileObject, mmc_pathBuf, mmc_mode) != FR_OK)
+//  if (f_open(&mmc_fileObject, mmc_pathBuf, mmc_mode) != FR_OK)
+  if (f_open(&mmc_fileObject, path, mmc_mode) != FR_OK)
   {
     r->_errno = ENOENT;
     return -1;

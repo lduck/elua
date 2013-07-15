@@ -1,0 +1,12 @@
+[submodule "rings"]
+    path = src/rings
+    url = https://github.com/keplerproject/rings.git
+    ignore = dirty
+[submodule "orbit"]
+    path = src/orbit
+    url = https://github.com/keplerproject/orbit.git
+    ignore = dirty
+[submodule "wsapi"]
+    path = src/wsapi
+    url = https://github.com/keplerproject/wsapi.git
+    ignore = dirty

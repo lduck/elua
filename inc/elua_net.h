@@ -7,6 +7,8 @@
 #include "lauxlib.h"
 #include "platform.h"
 
+#include "matrixssl/matrixsslApi.h"
+
 // eLua network typedefs
 typedef s16 elua_net_size;
 
@@ -50,5 +52,35 @@ elua_net_ip elua_net_lookup( const char* hostname );
 
 int elua_net_get_last_err( int s );
 int elua_net_get_telnet_socket();
+
+
+//#ifdef BUILD_DAEMON_SUPPORT_FOR_UIP
+struct elua_uip_state;
+
+struct ssl_state {
+  u16 sock;
+  unsigned char *buf;
+  u32 buf_len;
+  ssl_t *ssl;
+  s32 matrix_state;
+};
+
+//typedef void ( *daemon_callback_fn )( volatile struct elua_uip_state *pstate );
+//typedef void ( *daemon_callback_fn )( ssl_t *ssl );
+typedef void ( *daemon_callback_fn )( struct ssl_state **ssl_state );
+// eLua Daemon callbacks
+struct daemon
+{
+  s16 port;
+  daemon_callback_fn connected;
+  daemon_callback_fn recv;
+  daemon_callback_fn sent;
+  daemon_callback_fn poll;
+  elua_net_ip remote_client_ip;
+};
+
+struct daemon *elua_get_daemon_struct( u16 port );
+//#endif // BUILD_DAEMON_SUPPORT_FOR_UIP
+
 
 #endif

@@ -35,14 +35,17 @@
 static
 void SELECT (void)
 {
-    platform_pio_op( MMCFS_CS_PORT , ( ( u32 ) 1 << MMCFS_CS_PIN ), PLATFORM_IO_PIN_CLEAR );    
+//  AT91C_BASE_PIOA->PIO_CODR = AT91C_PA13_SPI0_NPCS1;
+  platform_pio_op( MMCFS_CS_PORT , ( ( u32 ) 1 << MMCFS_CS_PIN ), PLATFORM_IO_PIN_CLEAR );
+//  (Pin * AT91C_BASE_PIOA)->pio->PIO_CODR = AT91C_PA13_SPI0_NPCS1;
 }
 
 // de-asserts the CS pin to the card
 static
 void DESELECT (void)
 {
-    platform_pio_op( MMCFS_CS_PORT, ( ( u32 ) 1 << MMCFS_CS_PIN ), PLATFORM_IO_PIN_SET );
+//  AT91C_BASE_PIOA->PIO_SODR = AT91C_PA13_SPI0_NPCS1;
+  platform_pio_op( MMCFS_CS_PORT, ( ( u32 ) 1 << MMCFS_CS_PIN ), PLATFORM_IO_PIN_SET );
 }
 
 
